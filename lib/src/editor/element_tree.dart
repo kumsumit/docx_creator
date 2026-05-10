@@ -9,6 +9,8 @@ import '../core/defaults.dart';
 
 /// Base class for all PDF elements in the editor.
 abstract class PdfElement {
+  static int _nextGeneratedId = 0;
+
   /// X position in points from left.
   double x;
 
@@ -38,7 +40,9 @@ abstract class PdfElement {
     this.zIndex = 0,
     this.isSelected = false,
     String? id,
-  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+  }) : id =
+           id ??
+           'pdf_element_${DateTime.now().microsecondsSinceEpoch}_${_nextGeneratedId++}';
 
   /// Creates a copy of this element with new position/size.
   PdfElement copyWith({
@@ -371,15 +375,18 @@ class ImageElement extends PdfElement {
     double? height,
     int? zIndex,
     bool? isSelected,
+    List<int>? bytes,
+    String? extension,
+    String? xObjectName,
   }) {
     return ImageElement(
       x: x ?? this.x,
       y: y ?? this.y,
       width: width ?? this.width,
       height: height ?? this.height,
-      bytes: bytes,
-      extension: extension,
-      xObjectName: xObjectName,
+      bytes: bytes ?? this.bytes,
+      extension: extension ?? this.extension,
+      xObjectName: xObjectName ?? this.xObjectName,
       zIndex: zIndex ?? this.zIndex,
       isSelected: isSelected ?? this.isSelected,
       id: id,
@@ -438,17 +445,22 @@ class ShapeElement extends PdfElement {
     double? height,
     int? zIndex,
     bool? isSelected,
+    String? preset,
+    String? fillHex,
+    String? strokeHex,
+    double? strokeWidth,
+    double? cornerRadius,
   }) {
     return ShapeElement(
       x: x ?? this.x,
       y: y ?? this.y,
       width: width ?? this.width,
       height: height ?? this.height,
-      preset: preset,
-      fillHex: fillHex,
-      strokeHex: strokeHex,
-      strokeWidth: strokeWidth,
-      cornerRadius: cornerRadius,
+      preset: preset ?? this.preset,
+      fillHex: fillHex ?? this.fillHex,
+      strokeHex: strokeHex ?? this.strokeHex,
+      strokeWidth: strokeWidth ?? this.strokeWidth,
+      cornerRadius: cornerRadius ?? this.cornerRadius,
       zIndex: zIndex ?? this.zIndex,
       isSelected: isSelected ?? this.isSelected,
       id: id,

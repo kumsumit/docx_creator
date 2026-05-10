@@ -912,6 +912,25 @@ final doc = DocxDocumentBuilder()
 | `fromHtml(html)`   | `String` | Parse HTML to nodes     |
 | `fromMarkdown(md)` | `String` | Parse Markdown to nodes |
 
+### ElementTree
+
+Layer PDF editor elements with hit testing and flattening support:
+
+```dart
+final tree = ElementTree();
+tree.addElement(TextElement(x: 72, y: 720, content: 'Reviewed'));
+tree.addElement(ShapeElement(
+  x: 64,
+  y: 704,
+  width: 120,
+  height: 32,
+  fillHex: 'FFF2CC',
+));
+
+final selected = tree.hitTest(80, 720);
+final contentStream = tree.commit();
+```
+
 ### MarkdownParser
 
 | Method              | Parameters | Description             |

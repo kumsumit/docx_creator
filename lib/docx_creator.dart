@@ -34,6 +34,8 @@ export 'src/core/enums.dart';
 export 'src/core/exceptions.dart';
 export 'src/core/measurements.dart';
 export 'src/core/xml_extension.dart';
+// Editor
+export 'src/editor/element_tree.dart';
 // Exporters
 export 'src/exporters/docx_exporter.dart';
 export 'src/exporters/html_exporter.dart';

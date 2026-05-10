@@ -1,4 +1,4 @@
-import 'package:docx_creator/src/editor/element_tree.dart';
+import 'package:docx_creator/docx_creator.dart';
 import 'package:docx_creator/src/exporters/pdf/pdf_content_builder.dart';
 import 'package:test/test.dart';
 
