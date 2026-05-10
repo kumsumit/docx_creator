@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../../core/defaults.dart';
 import 'pdf_parser.dart';
 import 'pdf_types.dart';
 
@@ -22,8 +23,8 @@ class PdfTextExtractor {
   final Map<String, PdfFontInfo> fonts = {};
   final List<String> warnings = [];
 
-  double pageWidth = 612;
-  double pageHeight = 792;
+  double pageWidth = kDefaultPageWidth / 20.0;
+  double pageHeight = kDefaultPageHeight / 20.0;
 
   PdfTextExtractor(this.parser);
 

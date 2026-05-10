@@ -2,6 +2,7 @@ import 'dart:math' show pi, cos, sin;
 import 'dart:typed_data';
 
 import '../../../docx_creator.dart';
+import '../../core/defaults.dart';
 import '../../utils/file_saver.dart';
 import 'pdf_content_builder.dart';
 import 'pdf_document_writer.dart';
@@ -40,12 +41,12 @@ class PdfExporter {
 
   /// Creates a PDF exporter with configurable defaults.
   PdfExporter({
-    this.pageWidth = 612.0,
-    this.pageHeight = 792.0,
-    this.marginTop = 72.0,
-    this.marginBottom = 72.0,
-    this.marginLeft = 72.0,
-    this.marginRight = 72.0,
+    this.pageWidth = kDefaultPageWidth / 20.0,
+    this.pageHeight = kDefaultPageHeight / 20.0,
+    this.marginTop = kDefaultMarginTop / 20.0,
+    this.marginBottom = kDefaultMarginBottom / 20.0,
+    this.marginLeft = kDefaultMarginLeft / 20.0,
+    this.marginRight = kDefaultMarginRight / 20.0,
     this.fontSize = 12,
     this.compressContent = true,
   }) {

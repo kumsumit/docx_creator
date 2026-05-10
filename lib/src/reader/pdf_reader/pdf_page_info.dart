@@ -1,3 +1,4 @@
+import '../../core/defaults.dart';
 import 'pdf_parser.dart';
 
 /// Represents a rectangular box in PDF coordinates.
@@ -172,7 +173,7 @@ class PdfPageInfoExtractor {
     // However, fixing the specific error is the priority.
 
     final mediaBox =
-        _extractBox(content, 'MediaBox') ?? const PdfBox(0, 0, 612, 792);
+        _extractBox(content, 'MediaBox') ?? const PdfBox(0, 0, kDefaultPageWidth / 20.0, kDefaultPageHeight / 20.0);
     final cropBox = _extractBox(content, 'CropBox');
     final trimBox = _extractBox(content, 'TrimBox');
     final artBox = _extractBox(content, 'ArtBox');

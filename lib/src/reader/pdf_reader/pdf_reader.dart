@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../docx_creator.dart';
-import '../../core/constants.dart';
+import '../../core/defaults.dart';
 import '../../utils/file_loader_io.dart'
     if (dart.library.js_interop) '../../utils/file_loader_web.dart';
 import 'pdf_annotations.dart';
@@ -53,8 +53,8 @@ class PdfReader {
   final List<String> _warnings = [];
 
   // Page dimensions (default Letter)
-  double _pageWidth = DocxConstants.defaultPageWidth;
-  double _pageHeight = DocxConstants.defaultPageHeight;
+  double _pageWidth = kDefaultPageWidth / 20.0; // Convert twips to points
+  double _pageHeight = kDefaultPageHeight / 20.0; // Convert twips to points
 
   PdfReader._(Uint8List data)
       : _parser = PdfParser(data),
@@ -70,11 +70,14 @@ class PdfReader {
   ///
   /// Throws [Exception] if file cannot be read.
   /// Throws [PdfParseException] if PDF is invalid.
-  static Future<PdfDocument> load(String filePath, {String? password}) async {
+  static Future<PdfDocument> load(String filePath, {
+    String? password,
+    bool lazyLoad = false,
+  }) async {
     final loader = getFileLoader();
     if (await loader.exists(filePath)) {
       final bytes = await loader.loadBytes(filePath);
-      if (bytes != null) return loadFromBytes(bytes, password: password);
+      if (bytes != null) return loadFromBytes(bytes, password: password, lazyLoad: lazyLoad);
     }
     throw PdfParseException('File not found: $filePath');
   }
@@ -82,8 +85,10 @@ class PdfReader {
   /// Loads a PDF from bytes.
   ///
   /// Throws [PdfParseException] if PDF is invalid.
-  static Future<PdfDocument> loadFromBytes(Uint8List bytes,
-      {String? password}) async {
+  static Future<PdfDocument> loadFromBytes(Uint8List bytes, {
+    String? password,
+    bool lazyLoad = false,
+  }) async {
     if (bytes.isEmpty) {
       throw PdfParseException('Empty PDF data');
     }
@@ -101,11 +106,11 @@ class PdfReader {
 
     final reader = PdfReader._(bytes);
 
-    return reader._parse(password);
+    return reader._parse(password, lazyLoad: lazyLoad);
   }
 
   /// Parses the PDF and returns a document.
-  PdfDocument _parse(String? password) {
+  PdfDocument _parse(String? password, {bool lazyLoad = false}) {
     try {
       _parser.parse();
 
@@ -130,20 +135,23 @@ class PdfReader {
       }
 
       _warnings.addAll(_parser.warnings);
-      _parsePages();
+      if (!lazyLoad) {
+        _parsePages();
+      }
     } catch (e) {
       _warnings.add('Parse error: $e');
     }
 
     return PdfDocument(
-      elements: _elements,
-      images: _images,
+      elements: lazyLoad ? null : _elements,
+      images: lazyLoad ? null : _images,
       warnings: _warnings,
       pageCount: _parser.countPages(),
       pageWidth: _pageWidth,
       pageHeight: _pageHeight,
       version: _parser.version,
-      parser: _parser,
+      parser: lazyLoad ? _parser : null, // Only keep parser for lazy loading
+      reader: lazyLoad ? this : null,
     );
   }
 
@@ -199,8 +207,8 @@ class PdfReader {
             r'/MediaBox\s*\[\s*([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s*\]')
         .firstMatch(content);
     if (mediaBoxMatch != null) {
-      _pageWidth = double.tryParse(mediaBoxMatch.group(3)!) ?? DocxConstants.defaultPageWidth;
-      _pageHeight = double.tryParse(mediaBoxMatch.group(4)!) ?? DocxConstants.defaultPageHeight;
+      _pageWidth = double.tryParse(mediaBoxMatch.group(3)!) ?? kDefaultPageWidth / 20.0;
+      _pageHeight = double.tryParse(mediaBoxMatch.group(4)!) ?? kDefaultPageHeight / 20.0;
     }
 
     // CropBox (Visible region, overrides MediaBox if present)
@@ -717,13 +725,27 @@ class PdfDocument {
   ///
   /// Images are included as [DocxImage] within this list in their
   /// document position order. Use this for document structure processing.
-  final List<DocxNode> elements;
+  List<DocxNode> get elements {
+    if (_reader != null && _elements.isEmpty) {
+      _reader!._parsePages();
+      _elements = _reader!._elements;
+      _images = _reader!._images;
+    }
+    return _elements;
+  }
 
   /// Direct access to extracted images with metadata.
   ///
   /// Provides quick access to raw image bytes without traversing [elements].
   /// Useful for batch image extraction or when you only need images.
-  final List<PdfExtractedImage> images;
+  List<PdfExtractedImage> get images {
+    if (_reader != null && _elements.isEmpty) {
+      _reader!._parsePages();
+      _elements = _reader!._elements;
+      _images = _reader!._images;
+    }
+    return _images;
+  }
 
   /// Warnings encountered during parsing.
   final List<String> warnings;
@@ -754,17 +776,33 @@ class PdfDocument {
   XmpMetadata? _xmpMetadata;
   bool _xmpChecked = false;
   List<PdfAttachment>? _attachments;
+  PdfReader? _reader; // Reference to reader for lazy loading
+  List<DocxNode> _elements = [];
+  List<PdfExtractedImage> _images = [];
 
   PdfDocument({
-    required this.elements,
-    required this.images,
+    List<DocxNode>? elements,
+    List<PdfExtractedImage>? images,
     this.warnings = const [],
     this.pageCount = 0,
-    this.pageWidth = DocxConstants.defaultPageWidth,
-    this.pageHeight = DocxConstants.defaultPageHeight,
+    double? pageWidth,
+    double? pageHeight,
     this.version = '1.4',
     PdfParser? parser,
-  }) : _parser = parser;
+    PdfReader? reader,
+  })  : pageWidth = pageWidth ?? kDefaultPageWidth / 20.0,
+        pageHeight = pageHeight ?? kDefaultPageHeight / 20.0,
+        _parser = parser,
+        _reader = reader {
+    if (elements != null) {
+      _elements = elements;
+    }
+    if (images != null) {
+      _images = images;
+    }
+  }
+
+
 
   // ============ Metadata ============
 
@@ -1231,10 +1269,10 @@ class PdfDocument {
       pageSize: DocxPageSize.custom,
       customWidth: widthTwips,
       customHeight: heightTwips,
-      marginLeft: 1440,
-      marginRight: 1440,
-      marginTop: 1440,
-      marginBottom: 1440,
+      marginLeft: kDefaultMarginLeft,
+      marginRight: kDefaultMarginRight,
+      marginTop: kDefaultMarginTop,
+      marginBottom: kDefaultMarginBottom,
     );
 
     return DocxBuiltDocument(

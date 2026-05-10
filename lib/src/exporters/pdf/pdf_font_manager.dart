@@ -13,6 +13,9 @@ class EmbeddedFont {
   final TtfParser metrics;
   final String fontRef;
 
+  /// Cache for text measurements to improve performance
+  final Map<String, double> _textWidthCache = {};
+
   EmbeddedFont({
     required this.name,
     required this.ttfData,
@@ -28,12 +31,26 @@ class EmbeddedFont {
 
   /// Measures text width in points.
   double measureText(String text, double fontSize) {
+    final cacheKey = '$text@${fontSize.toStringAsFixed(2)}';
+
+    // Check cache first
+    if (_textWidthCache.containsKey(cacheKey)) {
+      return _textWidthCache[cacheKey]!;
+    }
+
+    // Calculate width
     var width = 0.0;
     for (var i = 0; i < text.length; i++) {
       final code = text.codeUnitAt(i);
       final charWidth = getCharWidth(code);
       width += charWidth * fontSize / 1000.0;
     }
+
+    // Cache the result (limit cache size to prevent memory issues)
+    if (_textWidthCache.length < 1000) {
+      _textWidthCache[cacheKey] = width;
+    }
+
     return width;
   }
 }
@@ -276,6 +293,9 @@ class PdfFontManager {
   /// Embedded fonts
   final List<EmbeddedFont> _embeddedFonts = [];
 
+  /// Cache for text measurements to improve performance
+  final Map<String, double> _textMeasurementCache = {};
+
   /// Gets the list of embedded fonts.
   List<EmbeddedFont> get embeddedFonts => List.unmodifiable(_embeddedFonts);
 
@@ -342,24 +362,44 @@ class PdfFontManager {
   /// [fontRef] uses embedded font metrics if available.
   double measureText(String text, double fontSize,
       {bool isBold = false, String? fontRef}) {
+    final cacheKey = '$text@${fontSize.toStringAsFixed(2)}@${isBold}@${fontRef ?? 'default'}';
+
+    // Check cache first
+    if (_textMeasurementCache.containsKey(cacheKey)) {
+      return _textMeasurementCache[cacheKey]!;
+    }
+
+    double width;
+
     // Use embedded font metrics if available
     if (fontRef != null) {
       final embedded = getEmbeddedFont(fontRef);
       if (embedded != null) {
-        return embedded.measureText(text, fontSize);
+        width = embedded.measureText(text, fontSize);
+        // Cache the result (limit cache size to prevent memory issues)
+        if (_textMeasurementCache.length < 2000) {
+          _textMeasurementCache[cacheKey] = width;
+        }
+        return width;
       }
     }
 
     // Select appropriate width table
     final widths = isBold ? _charWidthsBold : _charWidths;
 
-    var width = 0.0;
+    width = 0.0;
     for (var i = 0; i < text.length; i++) {
       final code = text.codeUnitAt(i);
       // Use character-specific width or fallback to average
       final charWidth = widths[code] ?? avgCharWidth;
       width += charWidth * fontSize;
     }
+
+    // Cache the result (limit cache size to prevent memory issues)
+    if (_textMeasurementCache.length < 2000) {
+      _textMeasurementCache[cacheKey] = width;
+    }
+
     return width;
   }
 

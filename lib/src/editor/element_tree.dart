@@ -3,6 +3,8 @@
 /// Provides an abstraction layer between Flutter UI and PDF bytes.
 library;
 
+import '../core/defaults.dart';
+
 /// Base class for all PDF elements in the editor.
 abstract class PdfElement {
   /// X position in points from left.
@@ -532,8 +534,8 @@ class ElementTree {
   final double pageHeight;
 
   ElementTree({
-    this.pageWidth = 612,
-    this.pageHeight = 792,
+    this.pageWidth = kDefaultPageWidth / 20.0,
+    this.pageHeight = kDefaultPageHeight / 20.0,
   });
 
   /// Adds an element to the tree.
