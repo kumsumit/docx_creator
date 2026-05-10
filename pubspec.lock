@@ -182,7 +182,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: ee9a20099324c47715c607321dd24afffedd1f6d
+      resolved-ref: "7127a3b0d2b07b4f9beea7d071d54f66f17f7dda"
       url: "https://github.com/kumsumit/image.git"
     source: git
     version: "4.8.0"
