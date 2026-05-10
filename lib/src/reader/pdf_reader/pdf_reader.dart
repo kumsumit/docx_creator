@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../docx_creator.dart';
+import '../../core/constants.dart';
 import '../../utils/file_loader_io.dart'
     if (dart.library.js_interop) '../../utils/file_loader_web.dart';
 import 'pdf_annotations.dart';
@@ -52,8 +53,8 @@ class PdfReader {
   final List<String> _warnings = [];
 
   // Page dimensions (default Letter)
-  double _pageWidth = 612;
-  double _pageHeight = 792;
+  double _pageWidth = DocxConstants.defaultPageWidth;
+  double _pageHeight = DocxConstants.defaultPageHeight;
 
   PdfReader._(Uint8List data)
       : _parser = PdfParser(data),
@@ -198,8 +199,8 @@ class PdfReader {
             r'/MediaBox\s*\[\s*([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s*\]')
         .firstMatch(content);
     if (mediaBoxMatch != null) {
-      _pageWidth = double.tryParse(mediaBoxMatch.group(3)!) ?? 612;
-      _pageHeight = double.tryParse(mediaBoxMatch.group(4)!) ?? 792;
+      _pageWidth = double.tryParse(mediaBoxMatch.group(3)!) ?? DocxConstants.defaultPageWidth;
+      _pageHeight = double.tryParse(mediaBoxMatch.group(4)!) ?? DocxConstants.defaultPageHeight;
     }
 
     // CropBox (Visible region, overrides MediaBox if present)
@@ -759,8 +760,8 @@ class PdfDocument {
     required this.images,
     this.warnings = const [],
     this.pageCount = 0,
-    this.pageWidth = 612,
-    this.pageHeight = 792,
+    this.pageWidth = DocxConstants.defaultPageWidth,
+    this.pageHeight = DocxConstants.defaultPageHeight,
     this.version = '1.4',
     PdfParser? parser,
   }) : _parser = parser;
