@@ -1,7 +1,7 @@
 # docx_creator
 
 [![pub package](https://img.shields.io/pub/v/docx_creator.svg)](https://pub.dev/packages/docx_creator)
-[![Dart SDK](https://img.shields.io/badge/Dart-%3E%3D2.19.0-blue)](https://dart.dev)
+[![Dart SDK](https://img.shields.io/badge/Dart-%5E3.11.0-blue)](https://dart.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A **developer-first DOCX generation library** for Dart. Create, parse, read, and edit Microsoft Word documents with a fluent API, HTML/Markdown parsers, and full OpenXML compliance.
@@ -48,7 +48,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  docx_creator: ^1.2.3
+  docx_creator: ^1.2.5
 ```
 
 Then run:

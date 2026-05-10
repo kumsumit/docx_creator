@@ -3,6 +3,8 @@
 /// Provides an abstraction layer between Flutter UI and PDF bytes.
 library;
 
+import 'dart:math' as math;
+
 import '../core/defaults.dart';
 
 /// Base class for all PDF elements in the editor.
@@ -141,10 +143,7 @@ class TextElement extends PdfElement {
     super.zIndex,
     super.isSelected,
     super.id,
-  }) : super(
-          width: content.length * fontSize * 0.5,
-          height: fontSize * 1.2,
-        );
+  }) : super(width: content.length * fontSize * 0.5, height: fontSize * 1.2);
 
   @override
   PdfElement copyWith({
@@ -161,10 +160,21 @@ class TextElement extends PdfElement {
     bool? isItalic,
     bool? isUnderline,
     bool? isStrikethrough,
+    bool? isSuperscript,
+    bool? isSubscript,
+    bool? isAllCaps,
+    bool? isSmallCaps,
     String? colorHex,
     String? backgroundHex,
+    String? highlightColor,
+    double? characterSpacing,
+    double? lineHeight,
+    String? textAlign,
+    String? embeddedFontRef,
+    double? opacity,
+    double? rotation,
   }) {
-    return TextElement(
+    final copied = TextElement(
       x: x ?? this.x,
       y: y ?? this.y,
       content: content ?? this.content,
@@ -174,23 +184,26 @@ class TextElement extends PdfElement {
       isItalic: isItalic ?? this.isItalic,
       isUnderline: isUnderline ?? this.isUnderline,
       isStrikethrough: isStrikethrough ?? this.isStrikethrough,
-      isSuperscript: isSuperscript,
-      isSubscript: isSubscript,
-      isAllCaps: isAllCaps,
-      isSmallCaps: isSmallCaps,
+      isSuperscript: isSuperscript ?? this.isSuperscript,
+      isSubscript: isSubscript ?? this.isSubscript,
+      isAllCaps: isAllCaps ?? this.isAllCaps,
+      isSmallCaps: isSmallCaps ?? this.isSmallCaps,
       colorHex: colorHex ?? this.colorHex,
       backgroundHex: backgroundHex ?? this.backgroundHex,
-      highlightColor: highlightColor,
-      characterSpacing: characterSpacing,
-      lineHeight: lineHeight,
-      textAlign: textAlign,
-      embeddedFontRef: embeddedFontRef,
-      opacity: opacity,
-      rotation: rotation,
+      highlightColor: highlightColor ?? this.highlightColor,
+      characterSpacing: characterSpacing ?? this.characterSpacing,
+      lineHeight: lineHeight ?? this.lineHeight,
+      textAlign: textAlign ?? this.textAlign,
+      embeddedFontRef: embeddedFontRef ?? this.embeddedFontRef,
+      opacity: opacity ?? this.opacity,
+      rotation: rotation ?? this.rotation,
       zIndex: zIndex ?? this.zIndex,
       isSelected: isSelected ?? this.isSelected,
       id: id,
     );
+    copied.width = width ?? this.width;
+    copied.height = height ?? this.height;
+    return copied;
   }
 
   /// Gets the effective font size (adjusted for super/subscript).
@@ -257,9 +270,9 @@ class TextElement extends PdfElement {
 
     // Apply rotation if needed
     if (rotation != 0) {
-      final rad = rotation * 3.14159265 / 180;
-      final cosR = _cos(rad);
-      final sinR = _sin(rad);
+      final rad = rotation * math.pi / 180;
+      final cosR = math.cos(rad);
+      final sinR = math.sin(rad);
       sb.writeln('$cosR $sinR ${-sinR} $cosR $x $yPos Tm');
     } else {
       sb.writeln('1 0 0 1 $x $yPos Tm');
@@ -300,12 +313,7 @@ class TextElement extends PdfElement {
 
   /// Converts hex color to RGB values (0-1 range).
   List<String> _hexToRgbValues(String hex) {
-    final h = hex.replaceAll('#', '');
-    if (h.length != 6) return ['0', '0', '0'];
-    final r = int.parse(h.substring(0, 2), radix: 16) / 255;
-    final g = int.parse(h.substring(2, 4), radix: 16) / 255;
-    final b = int.parse(h.substring(4, 6), radix: 16) / 255;
-    return [r.toStringAsFixed(3), g.toStringAsFixed(3), b.toStringAsFixed(3)];
+    return _parseHexRgb(hex) ?? ['0', '0', '0'];
   }
 
   /// Converts highlight color name to hex.
@@ -328,18 +336,6 @@ class TextElement extends PdfElement {
       'black': '000000',
     };
     return colors[name];
-  }
-
-  /// Simple cosine calculation.
-  double _cos(double rad) {
-    // Taylor series approximation for small angles
-    return 1 - (rad * rad / 2) + (rad * rad * rad * rad / 24);
-  }
-
-  /// Simple sine calculation.
-  double _sin(double rad) {
-    // Taylor series approximation for small angles
-    return rad - (rad * rad * rad / 6) + (rad * rad * rad * rad * rad / 120);
   }
 }
 
@@ -466,18 +462,12 @@ class ShapeElement extends PdfElement {
 
     // Set colors
     if (fillHex != null) {
-      final r = int.parse(fillHex!.substring(0, 2), radix: 16) / 255;
-      final g = int.parse(fillHex!.substring(2, 4), radix: 16) / 255;
-      final b = int.parse(fillHex!.substring(4, 6), radix: 16) / 255;
-      sb.writeln(
-          '${r.toStringAsFixed(3)} ${g.toStringAsFixed(3)} ${b.toStringAsFixed(3)} rg');
+      final rgb = _parseHexRgb(fillHex!) ?? ['0', '0', '0'];
+      sb.writeln('${rgb[0]} ${rgb[1]} ${rgb[2]} rg');
     }
     if (strokeHex != null) {
-      final r = int.parse(strokeHex!.substring(0, 2), radix: 16) / 255;
-      final g = int.parse(strokeHex!.substring(2, 4), radix: 16) / 255;
-      final b = int.parse(strokeHex!.substring(4, 6), radix: 16) / 255;
-      sb.writeln(
-          '${r.toStringAsFixed(3)} ${g.toStringAsFixed(3)} ${b.toStringAsFixed(3)} RG');
+      final rgb = _parseHexRgb(strokeHex!) ?? ['0', '0', '0'];
+      sb.writeln('${rgb[0]} ${rgb[1]} ${rgb[2]} RG');
       sb.writeln('$strokeWidth w');
     }
 
@@ -488,7 +478,12 @@ class ShapeElement extends PdfElement {
         break;
       case 'ellipse':
         _appendEllipsePath(
-            sb, x + width / 2, y + height / 2, width / 2, height / 2);
+          sb,
+          x + width / 2,
+          y + height / 2,
+          width / 2,
+          height / 2,
+        );
         break;
       default:
         sb.writeln('$x $y $width $height re');
@@ -508,7 +503,12 @@ class ShapeElement extends PdfElement {
   }
 
   void _appendEllipsePath(
-      StringBuffer sb, double cx, double cy, double rx, double ry) {
+    StringBuffer sb,
+    double cx,
+    double cy,
+    double rx,
+    double ry,
+  ) {
     const k = 0.5522847498;
     final kx = rx * k;
     final ky = ry * k;
@@ -520,6 +520,20 @@ class ShapeElement extends PdfElement {
     sb.writeln('${cx + kx} ${cy - ry} ${cx + rx} ${cy - ky} ${cx + rx} $cy c');
     sb.writeln('h');
   }
+}
+
+List<String>? _parseHexRgb(String hex) {
+  final h = hex.replaceAll('#', '');
+  if (h.length != 6) return null;
+  final r = int.tryParse(h.substring(0, 2), radix: 16);
+  final g = int.tryParse(h.substring(2, 4), radix: 16);
+  final b = int.tryParse(h.substring(4, 6), radix: 16);
+  if (r == null || g == null || b == null) return null;
+  return [
+    (r / 255).toStringAsFixed(3),
+    (g / 255).toStringAsFixed(3),
+    (b / 255).toStringAsFixed(3),
+  ];
 }
 
 /// Container for all elements in a PDF page being edited.
@@ -556,16 +570,20 @@ class ElementTree {
 
   /// Updates an element's position.
   void moveElement(String id, double dx, double dy) {
-    final element = elements.firstWhere((e) => e.id == id,
-        orElse: () => throw Exception('Element not found'));
+    final element = elements.firstWhere(
+      (e) => e.id == id,
+      orElse: () => throw Exception('Element not found'),
+    );
     element.x += dx;
     element.y += dy;
   }
 
   /// Updates an element's size.
   void resizeElement(String id, double newWidth, double newHeight) {
-    final element = elements.firstWhere((e) => e.id == id,
-        orElse: () => throw Exception('Element not found'));
+    final element = elements.firstWhere(
+      (e) => e.id == id,
+      orElse: () => throw Exception('Element not found'),
+    );
     element.width = newWidth;
     element.height = newHeight;
   }

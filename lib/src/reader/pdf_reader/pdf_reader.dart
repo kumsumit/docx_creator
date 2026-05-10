@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import '../../../docx_creator.dart';
-import '../../core/defaults.dart';
 import '../../utils/file_loader_io.dart'
     if (dart.library.js_interop) '../../utils/file_loader_web.dart';
 import 'pdf_annotations.dart';
@@ -57,10 +56,10 @@ class PdfReader {
   double _pageHeight = kDefaultPageHeight / 20.0; // Convert twips to points
 
   PdfReader._(Uint8List data)
-      : _parser = PdfParser(data),
-        _textExtractor = PdfTextExtractor.create(),
-        _imageExtractor = PdfImageExtractor.create(),
-        _tableDetector = PdfTableDetector() {
+    : _parser = PdfParser(data),
+      _textExtractor = PdfTextExtractor.create(),
+      _imageExtractor = PdfImageExtractor.create(),
+      _tableDetector = PdfTableDetector() {
     // Share the same parser instance with extractors
     _textExtractor.parser = _parser;
     _imageExtractor.parser = _parser;
@@ -69,25 +68,38 @@ class PdfReader {
   /// Loads a PDF from a file path.
   ///
   /// Throws [Exception] if file cannot be read.
-  /// Throws [PdfParseException] if PDF is invalid.
-  static Future<PdfDocument> load(String filePath, {
+  /// Throws [PdfParseException] if the file is missing, has an invalid header,
+  /// or parsing fails while [strict] is enabled.
+  static Future<PdfDocument> load(
+    String filePath, {
     String? password,
     bool lazyLoad = false,
+    bool strict = false,
   }) async {
     final loader = getFileLoader();
     if (await loader.exists(filePath)) {
       final bytes = await loader.loadBytes(filePath);
-      if (bytes != null) return loadFromBytes(bytes, password: password, lazyLoad: lazyLoad);
+      if (bytes != null) {
+        return loadFromBytes(
+          bytes,
+          password: password,
+          lazyLoad: lazyLoad,
+          strict: strict,
+        );
+      }
     }
     throw PdfParseException('File not found: $filePath');
   }
 
   /// Loads a PDF from bytes.
   ///
-  /// Throws [PdfParseException] if PDF is invalid.
-  static Future<PdfDocument> loadFromBytes(Uint8List bytes, {
+  /// Throws [PdfParseException] if the bytes are empty, have an invalid header,
+  /// or parsing fails while [strict] is enabled.
+  static Future<PdfDocument> loadFromBytes(
+    Uint8List bytes, {
     String? password,
     bool lazyLoad = false,
+    bool strict = false,
   }) async {
     if (bytes.isEmpty) {
       throw PdfParseException('Empty PDF data');
@@ -101,16 +113,22 @@ class PdfReader {
     // Check for PDF header
     final header = String.fromCharCodes(bytes.sublist(0, 8));
     if (!header.startsWith('%PDF-')) {
-      throw PdfParseException('Invalid PDF header: expected %PDF-, got ${header.substring(0, 5)}');
+      throw PdfParseException(
+        'Invalid PDF header: expected %PDF-, got ${header.substring(0, 5)}',
+      );
     }
 
     final reader = PdfReader._(bytes);
 
-    return reader._parse(password, lazyLoad: lazyLoad);
+    return reader._parse(password, lazyLoad: lazyLoad, strict: strict);
   }
 
   /// Parses the PDF and returns a document.
-  PdfDocument _parse(String? password, {bool lazyLoad = false}) {
+  PdfDocument _parse(
+    String? password, {
+    bool lazyLoad = false,
+    bool strict = false,
+  }) {
     try {
       _parser.parse();
 
@@ -139,6 +157,10 @@ class PdfReader {
         _parsePages();
       }
     } catch (e) {
+      if (strict) {
+        if (e is PdfParseException) rethrow;
+        throw PdfParseException('Parse error: $e');
+      }
       _warnings.add('Parse error: $e');
     }
 
@@ -150,7 +172,7 @@ class PdfReader {
       pageWidth: _pageWidth,
       pageHeight: _pageHeight,
       version: _parser.version,
-      parser: lazyLoad ? _parser : null, // Only keep parser for lazy loading
+      parser: _parser,
       reader: lazyLoad ? this : null,
     );
   }
@@ -181,10 +203,9 @@ class PdfReader {
     if (kidsMatch == null) return;
 
     final kidsStr = kidsMatch.group(1)!;
-    final pageRefs = RegExp(r'(\d+)\s+\d+\s+R')
-        .allMatches(kidsStr)
-        .map((m) => int.parse(m.group(1)!))
-        .toList();
+    final pageRefs = RegExp(
+      r'(\d+)\s+\d+\s+R',
+    ).allMatches(kidsStr).map((m) => int.parse(m.group(1)!)).toList();
 
     for (final pageRef in pageRefs) {
       final obj = _parser.getObject(pageRef);
@@ -204,17 +225,19 @@ class PdfReader {
   void _extractPageBoxes(String content) {
     // MediaBox (Default, Required)
     final mediaBoxMatch = RegExp(
-            r'/MediaBox\s*\[\s*([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s*\]')
-        .firstMatch(content);
+      r'/MediaBox\s*\[\s*([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s*\]',
+    ).firstMatch(content);
     if (mediaBoxMatch != null) {
-      _pageWidth = double.tryParse(mediaBoxMatch.group(3)!) ?? kDefaultPageWidth / 20.0;
-      _pageHeight = double.tryParse(mediaBoxMatch.group(4)!) ?? kDefaultPageHeight / 20.0;
+      _pageWidth =
+          double.tryParse(mediaBoxMatch.group(3)!) ?? kDefaultPageWidth / 20.0;
+      _pageHeight =
+          double.tryParse(mediaBoxMatch.group(4)!) ?? kDefaultPageHeight / 20.0;
     }
 
     // CropBox (Visible region, overrides MediaBox if present)
     final cropBoxMatch = RegExp(
-            r'/CropBox\s*\[\s*([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s*\]')
-        .firstMatch(content);
+      r'/CropBox\s*\[\s*([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s+([\d\.\-]+)\s*\]',
+    ).firstMatch(content);
     if (cropBoxMatch != null) {
       final w = double.tryParse(cropBoxMatch.group(3)!);
       final h = double.tryParse(cropBoxMatch.group(4)!);
@@ -243,10 +266,12 @@ class PdfReader {
     final xObjects = _imageExtractor.extractXObjects(pageObj.content, pageRef);
 
     // Get Contents
-    final contentsArrayMatch =
-        RegExp(r'/Contents\s*\[([^\]]+)\]').firstMatch(pageObj.content);
-    final contentsSingleMatch =
-        RegExp(r'/Contents\s+(\d+)\s+\d+\s+R').firstMatch(pageObj.content);
+    final contentsArrayMatch = RegExp(
+      r'/Contents\s*\[([^\]]+)\]',
+    ).firstMatch(pageObj.content);
+    final contentsSingleMatch = RegExp(
+      r'/Contents\s+(\d+)\s+\d+\s+R',
+    ).firstMatch(pageObj.content);
 
     String? combinedStream;
 
@@ -415,22 +440,26 @@ class PdfReader {
             }
           }
 
-          images.add(PdfImageItem(
-            bytes: imageBytes,
-            x: state.ctm.e,
-            y: state.ctm.f,
-            width: w > 0 ? w : xObj.width.toDouble(),
-            height: h > 0 ? h : xObj.height.toDouble(),
-            extension: extension,
-            filter: xObj.filter,
-          ));
+          images.add(
+            PdfImageItem(
+              bytes: imageBytes,
+              x: state.ctm.e,
+              y: state.ctm.f,
+              width: w > 0 ? w : xObj.width.toDouble(),
+              height: h > 0 ? h : xObj.height.toDouble(),
+              extension: extension,
+              filter: xObj.filter,
+            ),
+          );
 
-          _images.add(PdfExtractedImage(
-            bytes: imageBytes,
-            width: xObj.width,
-            height: xObj.height,
-            format: extension,
-          ));
+          _images.add(
+            PdfExtractedImage(
+              bytes: imageBytes,
+              width: xObj.width,
+              height: xObj.height,
+              format: extension,
+            ),
+          );
         }
       }
     }
@@ -502,12 +531,14 @@ class PdfReader {
           if (p != null) _elements.add(p);
           paragraphLines.clear();
         }
-        _elements.add(DocxImage(
-          bytes: item.bytes,
-          width: item.width,
-          height: item.height,
-          extension: item.extension,
-        ));
+        _elements.add(
+          DocxImage(
+            bytes: item.bytes,
+            width: item.width,
+            height: item.height,
+            extension: item.extension,
+          ),
+        );
       } else if (item is PdfTextLine) {
         // Check if new line/block
         var newBlock = false;
@@ -637,16 +668,20 @@ class PdfReader {
         decorations.add(DocxTextDecoration.strikethrough);
       }
 
-      children.add(DocxText(
-        line.text,
-        fontSize: line.size,
-        fontWeight: line.isBold ? DocxFontWeight.bold : DocxFontWeight.normal,
-        fontStyle: line.isItalic ? DocxFontStyle.italic : DocxFontStyle.normal,
-        color: colorHex != '000000' ? DocxColor(colorHex) : null,
-        decorations: decorations,
-        isSuperscript: line.textRise > 0,
-        isSubscript: line.textRise < 0,
-      ));
+      children.add(
+        DocxText(
+          line.text,
+          fontSize: line.size,
+          fontWeight: line.isBold ? DocxFontWeight.bold : DocxFontWeight.normal,
+          fontStyle: line.isItalic
+              ? DocxFontStyle.italic
+              : DocxFontStyle.normal,
+          color: colorHex != '000000' ? DocxColor(colorHex) : null,
+          decorations: decorations,
+          isSuperscript: line.textRise > 0,
+          isSubscript: line.textRise < 0,
+        ),
+      );
     }
 
     // Create paragraph with detected style
@@ -662,7 +697,8 @@ class PdfReader {
       // Inspecting previous DocxParagraph usage: typically just children.
       // We'll trust the fontSize we set on children to carry the formatting visually.
       return DocxParagraph(
-          children: children); // Style support requires API check
+        children: children,
+      ); // Style support requires API check
     }
 
     if (isListItem) {
@@ -687,9 +723,7 @@ class PdfReader {
       final cells = <DocxTableCell>[];
       for (final cell in row) {
         final p = _createParagraph(cell.textLines);
-        cells.add(DocxTableCell(
-          children: p != null ? [p] : [],
-        ));
+        cells.add(DocxTableCell(children: p != null ? [p] : []));
       }
       rows.add(DocxTableRow(cells: cells));
     }
@@ -727,9 +761,9 @@ class PdfDocument {
   /// document position order. Use this for document structure processing.
   List<DocxNode> get elements {
     if (_reader != null && _elements.isEmpty) {
-      _reader!._parsePages();
-      _elements = _reader!._elements;
-      _images = _reader!._images;
+      _reader._parsePages();
+      _elements = _reader._elements;
+      _images = _reader._images;
     }
     return _elements;
   }
@@ -740,9 +774,9 @@ class PdfDocument {
   /// Useful for batch image extraction or when you only need images.
   List<PdfExtractedImage> get images {
     if (_reader != null && _elements.isEmpty) {
-      _reader!._parsePages();
-      _elements = _reader!._elements;
-      _images = _reader!._images;
+      _reader._parsePages();
+      _elements = _reader._elements;
+      _images = _reader._images;
     }
     return _images;
   }
@@ -776,7 +810,7 @@ class PdfDocument {
   XmpMetadata? _xmpMetadata;
   bool _xmpChecked = false;
   List<PdfAttachment>? _attachments;
-  PdfReader? _reader; // Reference to reader for lazy loading
+  final PdfReader? _reader; // Reference to reader for lazy loading
   List<DocxNode> _elements = [];
   List<PdfExtractedImage> _images = [];
 
@@ -790,10 +824,10 @@ class PdfDocument {
     this.version = '1.4',
     PdfParser? parser,
     PdfReader? reader,
-  })  : pageWidth = pageWidth ?? kDefaultPageWidth / 20.0,
-        pageHeight = pageHeight ?? kDefaultPageHeight / 20.0,
-        _parser = parser,
-        _reader = reader {
+  }) : pageWidth = pageWidth ?? kDefaultPageWidth / 20.0,
+       pageHeight = pageHeight ?? kDefaultPageHeight / 20.0,
+       _parser = parser,
+       _reader = reader {
     if (elements != null) {
       _elements = elements;
     }
@@ -801,8 +835,6 @@ class PdfDocument {
       _images = images;
     }
   }
-
-
 
   // ============ Metadata ============
 
@@ -844,8 +876,9 @@ class PdfDocument {
     final rootObj = _parser.getObject(_parser.rootRef);
     if (rootObj == null) return List.generate(pageCount, (i) => '${i + 1}');
 
-    final labelsMatch =
-        RegExp(r'/PageLabels\s+(\d+)\s+\d+\s+R').firstMatch(rootObj.content);
+    final labelsMatch = RegExp(
+      r'/PageLabels\s+(\d+)\s+\d+\s+R',
+    ).firstMatch(rootObj.content);
     if (labelsMatch == null) return List.generate(pageCount, (i) => '${i + 1}');
 
     final numTreeRef = int.parse(labelsMatch.group(1)!);
@@ -893,8 +926,9 @@ class PdfDocument {
   PdfStructureTree? get structureTree {
     if (!isTagged || _parser == null) return null;
     final rootObj = _parser.getObject(_parser.rootRef);
-    final match = RegExp(r'/StructTreeRoot\s+(\d+)\s+\d+\s+R')
-        .firstMatch(rootObj!.content);
+    final match = RegExp(
+      r'/StructTreeRoot\s+(\d+)\s+\d+\s+R',
+    ).firstMatch(rootObj!.content);
     if (match == null) return null;
 
     return PdfStructureTree(_parser, int.parse(match.group(1)!));
@@ -1017,13 +1051,15 @@ class PdfDocument {
     final result = <String, int>{};
 
     // Try /Names -> /Dests name tree
-    final namesMatch =
-        RegExp(r'/Names\s+(\d+)\s+\d+\s+R').firstMatch(rootObj.content);
+    final namesMatch = RegExp(
+      r'/Names\s+(\d+)\s+\d+\s+R',
+    ).firstMatch(rootObj.content);
     if (namesMatch != null) {
       final namesObj = _parser.getObject(int.parse(namesMatch.group(1)!));
       if (namesObj != null) {
-        final destsMatch =
-            RegExp(r'/Dests\s+(\d+)\s+\d+\s+R').firstMatch(namesObj.content);
+        final destsMatch = RegExp(
+          r'/Dests\s+(\d+)\s+\d+\s+R',
+        ).firstMatch(namesObj.content);
         if (destsMatch != null) {
           _parseNameTree(int.parse(destsMatch.group(1)!), result);
         }
@@ -1031,8 +1067,9 @@ class PdfDocument {
     }
 
     // Also try /Dests dictionary in catalog (older PDFs)
-    final destsMatch =
-        RegExp(r'/Dests\s+(\d+)\s+\d+\s+R').firstMatch(rootObj.content);
+    final destsMatch = RegExp(
+      r'/Dests\s+(\d+)\s+\d+\s+R',
+    ).firstMatch(rootObj.content);
     if (destsMatch != null) {
       _parseDestsDict(int.parse(destsMatch.group(1)!), result);
     }
@@ -1057,9 +1094,11 @@ class PdfDocument {
           name = nameRaw.substring(1, nameRaw.length - 1);
         } else {
           // Hex string
-          name = String.fromCharCodes(RegExp(r'[0-9A-Fa-f]{2}')
-              .allMatches(nameRaw.substring(1, nameRaw.length - 1))
-              .map((m) => int.parse(m.group(0)!, radix: 16)));
+          name = String.fromCharCodes(
+            RegExp(r'[0-9A-Fa-f]{2}')
+                .allMatches(nameRaw.substring(1, nameRaw.length - 1))
+                .map((m) => int.parse(m.group(0)!, radix: 16)),
+          );
         }
         // Extract page number from destination
         final pageNum = _extractPageFromDest(content.substring(match.end));
@@ -1116,8 +1155,9 @@ class PdfDocument {
     if (rootObj == null) return null;
 
     // Check /OpenAction
-    final openMatch = RegExp(r'/OpenAction\s*\[?\s*(\d+)\s+\d+\s+R')
-        .firstMatch(rootObj.content);
+    final openMatch = RegExp(
+      r'/OpenAction\s*\[?\s*(\d+)\s+\d+\s+R',
+    ).firstMatch(rootObj.content);
     if (openMatch != null) {
       final pageRef = int.parse(openMatch.group(1)!);
       for (var i = 0; i < pageInfos.length; i++) {
@@ -1163,8 +1203,9 @@ class PdfDocument {
     final rootObj = _parser.getObject(_parser.rootRef);
     if (rootObj == null) return null;
 
-    final pagesMatch =
-        RegExp(r'/Pages\s+(\d+)\s+\d+\s+R').firstMatch(rootObj.content);
+    final pagesMatch = RegExp(
+      r'/Pages\s+(\d+)\s+\d+\s+R',
+    ).firstMatch(rootObj.content);
     if (pagesMatch == null) return null;
 
     final pagesRef = int.parse(pagesMatch.group(1)!);
@@ -1172,7 +1213,10 @@ class PdfDocument {
   }
 
   PdfObject? _findPageByIndex(
-      int ref, int targetIndex, List<int> currentIndex) {
+    int ref,
+    int targetIndex,
+    List<int> currentIndex,
+  ) {
     final obj = _parser!.getObject(ref);
     if (obj == null) return null;
 
@@ -1188,8 +1232,11 @@ class PdfDocument {
     if (kidsMatch != null) {
       final refs = RegExp(r'(\d+)\s+\d+\s+R').allMatches(kidsMatch.group(1)!);
       for (final m in refs) {
-        final result =
-            _findPageByIndex(int.parse(m.group(1)!), targetIndex, currentIndex);
+        final result = _findPageByIndex(
+          int.parse(m.group(1)!),
+          targetIndex,
+          currentIndex,
+        );
         if (result != null) return result;
       }
     }
@@ -1198,8 +1245,9 @@ class PdfDocument {
 
   String? _getPageContentStream(PdfObject pageObj) {
     // Array of content streams
-    final arrayMatch =
-        RegExp(r'/Contents\s*\[([^\]]+)\]').firstMatch(pageObj.content);
+    final arrayMatch = RegExp(
+      r'/Contents\s*\[([^\]]+)\]',
+    ).firstMatch(pageObj.content);
     if (arrayMatch != null) {
       final refs = RegExp(r'(\d+)\s+\d+\s+R').allMatches(arrayMatch.group(1)!);
       final sb = StringBuffer();
@@ -1211,8 +1259,9 @@ class PdfDocument {
     }
 
     // Single content stream
-    final singleMatch =
-        RegExp(r'/Contents\s+(\d+)\s+\d+\s+R').firstMatch(pageObj.content);
+    final singleMatch = RegExp(
+      r'/Contents\s+(\d+)\s+\d+\s+R',
+    ).firstMatch(pageObj.content);
     if (singleMatch != null) {
       return _parser!.getStreamContent(int.parse(singleMatch.group(1)!));
     }
@@ -1239,9 +1288,10 @@ class PdfDocument {
 
     // Look for pdfaid:part and pdfaid:conformance
     final partMatch = RegExp(r'pdfaid:part>(\d+)<').firstMatch(xmp!.rawXml!);
-    final confMatch =
-        RegExp(r'pdfaid:conformance>([ABU])<', caseSensitive: false)
-            .firstMatch(xmp.rawXml!);
+    final confMatch = RegExp(
+      r'pdfaid:conformance>([ABU])<',
+      caseSensitive: false,
+    ).firstMatch(xmp.rawXml!);
 
     if (partMatch != null) {
       final part = partMatch.group(1);
@@ -1275,10 +1325,7 @@ class PdfDocument {
       marginBottom: kDefaultMarginBottom,
     );
 
-    return DocxBuiltDocument(
-      elements: elements,
-      section: section,
-    );
+    return DocxBuiltDocument(elements: elements, section: section);
   }
 
   /// Gets all text content as a single string.

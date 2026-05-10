@@ -40,8 +40,7 @@ class EmbeddedFont {
 
     // Calculate width
     var width = 0.0;
-    for (var i = 0; i < text.length; i++) {
-      final code = text.codeUnitAt(i);
+    for (final code in text.runes) {
       final charWidth = getCharWidth(code);
       width += charWidth * fontSize / 1000.0;
     }
@@ -308,12 +307,14 @@ class PdfFontManager {
 
     final parser = TtfParser(ttfData)..parse();
     final fontRef = '/F${5 + _embeddedFonts.length}';
-    _embeddedFonts.add(EmbeddedFont(
-      name: name,
-      ttfData: ttfData,
-      metrics: parser,
-      fontRef: fontRef,
-    ));
+    _embeddedFonts.add(
+      EmbeddedFont(
+        name: name,
+        ttfData: ttfData,
+        metrics: parser,
+        fontRef: fontRef,
+      ),
+    );
     return fontRef;
   }
 
@@ -360,9 +361,14 @@ class PdfFontManager {
   /// Measures the width of text in points using per-character widths.
   /// [isBold] uses Helvetica-Bold width table for accurate measurement.
   /// [fontRef] uses embedded font metrics if available.
-  double measureText(String text, double fontSize,
-      {bool isBold = false, String? fontRef}) {
-    final cacheKey = '$text@${fontSize.toStringAsFixed(2)}@${isBold}@${fontRef ?? 'default'}';
+  double measureText(
+    String text,
+    double fontSize, {
+    bool isBold = false,
+    String? fontRef,
+  }) {
+    final cacheKey =
+        '$text@${fontSize.toStringAsFixed(2)}@$isBold@${fontRef ?? 'default'}';
 
     // Check cache first
     if (_textMeasurementCache.containsKey(cacheKey)) {
@@ -388,8 +394,7 @@ class PdfFontManager {
     final widths = isBold ? _charWidthsBold : _charWidths;
 
     width = 0.0;
-    for (var i = 0; i < text.length; i++) {
-      final code = text.codeUnitAt(i);
+    for (final code in text.runes) {
       // Use character-specific width or fallback to average
       final charWidth = widths[code] ?? avgCharWidth;
       width += charWidth * fontSize;
@@ -409,20 +414,22 @@ class PdfFontManager {
   String escapeText(String text) {
     final buffer = StringBuffer();
 
-    for (var i = 0; i < text.length; i++) {
-      final char = text[i];
-      final code = char.codeUnitAt(0);
-
+    for (final code in text.runes) {
       // Handle special PDF characters
-      switch (char) {
-        case '\\':
+      switch (code) {
+        case 0x5C:
           buffer.write('\\\\');
           break;
-        case '(':
+        case 0x28:
           buffer.write('\\(');
           break;
-        case ')':
+        case 0x29:
           buffer.write('\\)');
+          break;
+        case 0x09:
+        case 0x0A:
+        case 0x0D:
+          buffer.write(' ');
           break;
         default:
           // Check for common Unicode -> WinAnsi mappings
@@ -431,12 +438,14 @@ class PdfFontManager {
             buffer.write('\\${winAnsi.toRadixString(8).padLeft(3, '0')}');
           } else if (code >= 32 && code <= 126) {
             // Standard ASCII printable
-            buffer.write(char);
+            buffer.writeCharCode(code);
           } else if (code >= 128 && code <= 255) {
             // Extended ASCII (WinAnsi range)
             buffer.write('\\${code.toRadixString(8).padLeft(3, '0')}');
           } else {
-            // Skip unsupported characters silently
+            // Standard PDF fonts cannot represent this code point in WinAnsi.
+            // Preserve layout and visible intent with a single replacement.
+            buffer.write('?');
           }
       }
     }
@@ -452,8 +461,7 @@ class PdfFontManager {
     if (font == null) return '';
 
     final sb = StringBuffer();
-    for (var i = 0; i < text.length; i++) {
-      final code = text.codeUnitAt(i);
+    for (final code in text.runes) {
       final gid = font.metrics.getGlyphId(code);
       sb.write(gid.toRadixString(16).padLeft(4, '0').toUpperCase());
     }
@@ -479,7 +487,8 @@ class PdfFontManager {
           '333 556 556 500 556 556 278 556 556 222 222 500 222 833 556 556 '
           '556 556 333 500 278 556 500 722 500 500 500 334 260 334 584 278]';
 
-      final dict = '<< /Type /Font /Subtype /Type1 /BaseFont /$baseFont '
+      final dict =
+          '<< /Type /Font /Subtype /Type1 /BaseFont /$baseFont '
           '/Encoding /WinAnsiEncoding '
           '${baseFont.contains("Courier") ? "" : "/FirstChar 32 /LastChar 126 /Widths $helveticaWidths"} >>';
 
@@ -503,17 +512,19 @@ class PdfFontManager {
       // B. Font Descriptor
       final bbox = font.metrics.getScaledBbox();
       final flags = font.metrics.flags;
-      final descriptorId = writer.createObject('<< /Type /FontDescriptor\n'
-          '/FontName /${font.name.replaceAll(" ", "")}\n'
-          '/Flags $flags\n'
-          '/FontBBox [${bbox[0]} ${bbox[1]} ${bbox[2]} ${bbox[3]}]\n'
-          '/ItalicAngle ${font.metrics.italicAngle}\n'
-          '/Ascent ${font.metrics.getScaledAscent()}\n'
-          '/Descent ${font.metrics.getScaledDescent()}\n'
-          '/CapHeight ${font.metrics.getScaledCapHeight()}\n'
-          '/StemV 80\n' // Approximated
-          '/FontFile2 $fontStreamId 0 R\n'
-          '>>');
+      final descriptorId = writer.createObject(
+        '<< /Type /FontDescriptor\n'
+        '/FontName /${font.name.replaceAll(" ", "")}\n'
+        '/Flags $flags\n'
+        '/FontBBox [${bbox[0]} ${bbox[1]} ${bbox[2]} ${bbox[3]}]\n'
+        '/ItalicAngle ${font.metrics.italicAngle}\n'
+        '/Ascent ${font.metrics.getScaledAscent()}\n'
+        '/Descent ${font.metrics.getScaledDescent()}\n'
+        '/CapHeight ${font.metrics.getScaledCapHeight()}\n'
+        '/StemV 80\n' // Approximated
+        '/FontFile2 $fontStreamId 0 R\n'
+        '>>',
+      );
 
       // C. CID System Info
       const cidSystemInfo =
@@ -562,28 +573,31 @@ class PdfFontManager {
       wArray.write(' ]'); // Close array
       wArray.write(']');
 
-      final cidFontId =
-          writer.createObject('<< /Type /Font /Subtype /CIDFontType2\n'
-              '/BaseFont /${font.name.replaceAll(" ", "")}\n'
-              '/CIDSystemInfo $cidSystemInfo\n'
-              '/FontDescriptor $descriptorId 0 R\n'
-              '/DW 1000\n'
-              // '/W $wArray\n' // Omitted for now
-              '>>');
+      final cidFontId = writer.createObject(
+        '<< /Type /Font /Subtype /CIDFontType2\n'
+        '/BaseFont /${font.name.replaceAll(" ", "")}\n'
+        '/CIDSystemInfo $cidSystemInfo\n'
+        '/FontDescriptor $descriptorId 0 R\n'
+        '/DW 1000\n'
+        // '/W $wArray\n' // Omitted for now
+        '>>',
+      );
 
       // E. ToUnicode CMap
       final cmap = font.metrics.generateToUnicodeCMap();
       final cmapId = writer.createObject(
-          '<< /Length ${cmap.length} >>\nstream\n$cmap\nendstream');
+        '<< /Length ${cmap.length} >>\nstream\n$cmap\nendstream',
+      );
 
       // F. Type0 Font (The one referenced in content)
-      final type0Id = writer
-          .createObject('<< /Type /Font /Subtype /Type0\n' // Composite font
-              '/BaseFont /${font.name.replaceAll(" ", "")}\n'
-              '/Encoding /Identity-H\n'
-              '/DescendantFonts [$cidFontId 0 R]\n'
-              '/ToUnicode $cmapId 0 R\n'
-              '>>');
+      final type0Id = writer.createObject(
+        '<< /Type /Font /Subtype /Type0\n' // Composite font
+        '/BaseFont /${font.name.replaceAll(" ", "")}\n'
+        '/Encoding /Identity-H\n'
+        '/DescendantFonts [$cidFontId 0 R]\n'
+        '/ToUnicode $cmapId 0 R\n'
+        '>>',
+      );
 
       fontIds[font.fontRef] = type0Id;
     }

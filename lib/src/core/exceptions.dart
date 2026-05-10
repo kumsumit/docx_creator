@@ -1,4 +1,4 @@
-/// Custom exceptions for `docx_ai_creator`.
+/// Custom exceptions for `docx_creator`.
 ///
 /// Provides clear, actionable error messages for common failure scenarios.
 library;
@@ -7,7 +7,7 @@ library;
 // BASE EXCEPTION
 // ============================================================
 
-/// Base exception for all docx_ai_creator errors.
+/// Base exception for all docx_creator errors.
 abstract class DocxException implements Exception {
   /// Human-readable error message.
   final String message;
@@ -60,8 +60,9 @@ class DocxParserException extends DocxException {
 
   @override
   String toString() {
-    final location =
-        line != null ? ' at line $line${column != null ? ':$column' : ''}' : '';
+    final location = line != null
+        ? ' at line $line${column != null ? ':$column' : ''}'
+        : '';
     return 'DocxParserException ($sourceFormat$location): $message'
         '${context != null ? '\nContext: $context' : ''}';
   }

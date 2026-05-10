@@ -37,26 +37,23 @@ class PdfContentBuilder {
 
   /// Sets the fill color from hex string (e.g., "FF0000").
   void setFillColorHex(String hex) {
-    if (hex.length != 6) return;
-    final r = int.parse(hex.substring(0, 2), radix: 16) / 255;
-    final g = int.parse(hex.substring(2, 4), radix: 16) / 255;
-    final b = int.parse(hex.substring(4, 6), radix: 16) / 255;
-    setFillColor(r, g, b);
+    final rgb = _parseHexRgb(hex);
+    if (rgb == null) return;
+    setFillColor(rgb[0], rgb[1], rgb[2]);
   }
 
   /// Sets the stroke color from RGB values (0-1 range).
   void setStrokeColor(double r, double g, double b) {
     _buffer.writeln(
-        '${r.toStringAsFixed(3)} ${g.toStringAsFixed(3)} ${b.toStringAsFixed(3)} RG');
+      '${r.toStringAsFixed(3)} ${g.toStringAsFixed(3)} ${b.toStringAsFixed(3)} RG',
+    );
   }
 
   /// Sets the stroke color from hex string.
   void setStrokeColorHex(String hex) {
-    if (hex.length != 6) return;
-    final r = int.parse(hex.substring(0, 2), radix: 16) / 255;
-    final g = int.parse(hex.substring(2, 4), radix: 16) / 255;
-    final b = int.parse(hex.substring(4, 6), radix: 16) / 255;
-    setStrokeColor(r, g, b);
+    final rgb = _parseHexRgb(hex);
+    if (rgb == null) return;
+    setStrokeColor(rgb[0], rgb[1], rgb[2]);
   }
 
   // --- Rectangles ---
@@ -67,15 +64,25 @@ class PdfContentBuilder {
   }
 
   /// Draws a stroked rectangle.
-  void strokeRect(double x, double y, double width, double height,
-      {double lineWidth = 0.5}) {
+  void strokeRect(
+    double x,
+    double y,
+    double width,
+    double height, {
+    double lineWidth = 0.5,
+  }) {
     _buffer.writeln('$lineWidth w');
     _buffer.writeln('$x $y $width $height re S');
   }
 
   /// Draws a filled and stroked rectangle.
-  void fillStrokeRect(double x, double y, double width, double height,
-      {double lineWidth = 0.5}) {
+  void fillStrokeRect(
+    double x,
+    double y,
+    double width,
+    double height, {
+    double lineWidth = 0.5,
+  }) {
     _buffer.writeln('$lineWidth w');
     _buffer.writeln('$x $y $width $height re B');
   }
@@ -83,8 +90,13 @@ class PdfContentBuilder {
   // --- Lines ---
 
   /// Draws a line.
-  void drawLine(double x1, double y1, double x2, double y2,
-      {double lineWidth = 0.5}) {
+  void drawLine(
+    double x1,
+    double y1,
+    double x2,
+    double y2, {
+    double lineWidth = 0.5,
+  }) {
     _buffer.writeln('$lineWidth w');
     _buffer.writeln('$x1 $y1 m $x2 $y2 l S');
   }
@@ -132,7 +144,13 @@ class PdfContentBuilder {
   /// Appends a cubic Bezier curve from current point to (x3, y3).
   /// Uses (x1, y1) and (x2, y2) as control points.
   void curveTo(
-      double x1, double y1, double x2, double y2, double x3, double y3) {
+    double x1,
+    double y1,
+    double x2,
+    double y2,
+    double x3,
+    double y3,
+  ) {
     _buffer.writeln('$x1 $y1 $x2 $y2 $x3 $y3 c');
   }
 
@@ -147,8 +165,14 @@ class PdfContentBuilder {
   }
 
   /// Draws an ellipse approximated with Bezier curves.
-  void drawEllipse(double cx, double cy, double rx, double ry,
-      {bool stroke = true, bool fill = false}) {
+  void drawEllipse(
+    double cx,
+    double cy,
+    double rx,
+    double ry, {
+    bool stroke = true,
+    bool fill = false,
+  }) {
     // Bezier approximation constant for circles
     const k = 0.5522847498;
     final kx = rx * k;
@@ -175,15 +199,26 @@ class PdfContentBuilder {
   }
 
   /// Draws a circle.
-  void drawCircle(double cx, double cy, double radius,
-      {bool stroke = true, bool fill = false}) {
+  void drawCircle(
+    double cx,
+    double cy,
+    double radius, {
+    bool stroke = true,
+    bool fill = false,
+  }) {
     drawEllipse(cx, cy, radius, radius, stroke: stroke, fill: fill);
   }
 
   /// Draws a rounded rectangle.
   void drawRoundedRect(
-      double x, double y, double width, double height, double radius,
-      {bool stroke = true, bool fill = false}) {
+    double x,
+    double y,
+    double width,
+    double height,
+    double radius, {
+    bool stroke = true,
+    bool fill = false,
+  }) {
     final r = radius.clamp(0, (width / 2).clamp(0, height / 2));
     const k = 0.5522847498;
     final kr = r * k;
@@ -192,8 +227,14 @@ class PdfContentBuilder {
     lineTo(x + width - r, y);
     curveTo(x + width - r + kr, y, x + width, y + r - kr, x + width, y + r);
     lineTo(x + width, y + height - r);
-    curveTo(x + width, y + height - r + kr, x + width - r + kr, y + height,
-        x + width - r, y + height);
+    curveTo(
+      x + width,
+      y + height - r + kr,
+      x + width - r + kr,
+      y + height,
+      x + width - r,
+      y + height,
+    );
     lineTo(x + r, y + height);
     curveTo(x + r - kr, y + height, x, y + height - r + kr, x, y + height - r);
     lineTo(x, y + r);
@@ -210,8 +251,11 @@ class PdfContentBuilder {
   }
 
   /// Draws a polygon from a list of points.
-  void drawPolygon(List<List<double>> points,
-      {bool stroke = true, bool fill = false}) {
+  void drawPolygon(
+    List<List<double>> points, {
+    bool stroke = true,
+    bool fill = false,
+  }) {
     if (points.isEmpty) return;
 
     moveTo(points[0][0], points[0][1]);
@@ -312,12 +356,21 @@ class PdfContentBuilder {
 
   /// Measures text width.
   /// [isBold] applies a width scaling factor for bold fonts.
-  double measureText(String text, double fontSize,
-      {bool isBold = false, String? fontRef, PdfFontManager? fontManager}) {
+  double measureText(
+    String text,
+    double fontSize, {
+    bool isBold = false,
+    String? fontRef,
+    PdfFontManager? fontManager,
+  }) {
     // Uses provided manager or falls back to local one (though local one won't have reg fonts)
     final manager = fontManager ?? _fontManager;
-    return manager.measureText(text, fontSize,
-        isBold: isBold, fontRef: fontRef);
+    return manager.measureText(
+      text,
+      fontSize,
+      isBold: isBold,
+      fontRef: fontRef,
+    );
   }
 
   /// Escapes text for PDF.
@@ -337,4 +390,14 @@ class PdfContentBuilder {
         .replaceAll('&#60;', '<')
         .replaceAll('&#62;', '>');
   }
+}
+
+List<double>? _parseHexRgb(String hex) {
+  final h = hex.replaceAll('#', '');
+  if (h.length != 6) return null;
+  final r = int.tryParse(h.substring(0, 2), radix: 16);
+  final g = int.tryParse(h.substring(2, 4), radix: 16);
+  final b = int.tryParse(h.substring(4, 6), radix: 16);
+  if (r == null || g == null || b == null) return null;
+  return [r / 255, g / 255, b / 255];
 }

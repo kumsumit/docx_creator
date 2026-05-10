@@ -2,7 +2,6 @@ import 'dart:math' show pi, cos, sin;
 import 'dart:typed_data';
 
 import '../../../docx_creator.dart';
-import '../../core/defaults.dart';
 import '../../utils/file_saver.dart';
 import 'pdf_content_builder.dart';
 import 'pdf_document_writer.dart';
@@ -127,7 +126,12 @@ class PdfExporter {
     // Render header
     if (header != null) {
       _renderNode(
-          header, builder, layout.marginLeft, layout.pageHeight - 36, layout);
+        header,
+        builder,
+        layout.marginLeft,
+        layout.pageHeight - 36,
+        layout,
+      );
     }
 
     // Render footer
@@ -191,7 +195,11 @@ class PdfExporter {
   }
 
   void _drawShape(
-      PdfContentBuilder builder, DocxShape shape, double x, double y) {
+    PdfContentBuilder builder,
+    DocxShape shape,
+    double x,
+    double y,
+  ) {
     builder.saveState();
 
     // Set colors
@@ -214,27 +222,48 @@ class PdfExporter {
 
       case DocxShapePreset.roundRect:
         final r = (w < h ? w : h) * 0.15;
-        builder.drawRoundedRect(x, y, w, h, r,
-            stroke: hasStroke, fill: hasFill);
+        builder.drawRoundedRect(
+          x,
+          y,
+          w,
+          h,
+          r,
+          stroke: hasStroke,
+          fill: hasFill,
+        );
 
       case DocxShapePreset.ellipse:
-        builder.drawEllipse(x + w / 2, y + h / 2, w / 2, h / 2,
-            stroke: hasStroke, fill: hasFill);
+        builder.drawEllipse(
+          x + w / 2,
+          y + h / 2,
+          w / 2,
+          h / 2,
+          stroke: hasStroke,
+          fill: hasFill,
+        );
 
       case DocxShapePreset.triangle:
-        builder.drawPolygon([
-          [x + w / 2, y + h], // Top
-          [x, y], // Bottom left
-          [x + w, y], // Bottom right
-        ], stroke: hasStroke, fill: hasFill);
+        builder.drawPolygon(
+          [
+            [x + w / 2, y + h], // Top
+            [x, y], // Bottom left
+            [x + w, y], // Bottom right
+          ],
+          stroke: hasStroke,
+          fill: hasFill,
+        );
 
       case DocxShapePreset.diamond:
-        builder.drawPolygon([
-          [x + w / 2, y + h], // Top
-          [x, y + h / 2], // Left
-          [x + w / 2, y], // Bottom
-          [x + w, y + h / 2], // Right
-        ], stroke: hasStroke, fill: hasFill);
+        builder.drawPolygon(
+          [
+            [x + w / 2, y + h], // Top
+            [x, y + h / 2], // Left
+            [x + w / 2, y], // Bottom
+            [x + w, y + h / 2], // Right
+          ],
+          stroke: hasStroke,
+          fill: hasFill,
+        );
 
       case DocxShapePreset.rightArrow:
         _drawArrow(builder, x, y, w, h, 'right', hasFill, hasStroke);
@@ -258,20 +287,46 @@ class PdfExporter {
         _drawStar(builder, x + w / 2, y + h / 2, w / 2, 6, hasFill, hasStroke);
 
       case DocxShapePreset.line:
-        builder.drawLine(x, y + h / 2, x + w, y + h / 2,
-            lineWidth: shape.outlineWidth);
+        builder.drawLine(
+          x,
+          y + h / 2,
+          x + w,
+          y + h / 2,
+          lineWidth: shape.outlineWidth,
+        );
 
       case DocxShapePreset.hexagon:
         _drawRegularPolygon(
-            builder, x + w / 2, y + h / 2, w / 2, 6, hasFill, hasStroke);
+          builder,
+          x + w / 2,
+          y + h / 2,
+          w / 2,
+          6,
+          hasFill,
+          hasStroke,
+        );
 
       case DocxShapePreset.octagon:
         _drawRegularPolygon(
-            builder, x + w / 2, y + h / 2, w / 2, 8, hasFill, hasStroke);
+          builder,
+          x + w / 2,
+          y + h / 2,
+          w / 2,
+          8,
+          hasFill,
+          hasStroke,
+        );
 
       case DocxShapePreset.pentagon:
         _drawRegularPolygon(
-            builder, x + w / 2, y + h / 2, w / 2, 5, hasFill, hasStroke);
+          builder,
+          x + w / 2,
+          y + h / 2,
+          w / 2,
+          5,
+          hasFill,
+          hasStroke,
+        );
 
       default:
         // Fallback to rectangle for unsupported shapes
@@ -292,8 +347,16 @@ class PdfExporter {
     builder.restoreState();
   }
 
-  void _drawArrow(PdfContentBuilder builder, double x, double y, double w,
-      double h, String direction, bool fill, bool stroke) {
+  void _drawArrow(
+    PdfContentBuilder builder,
+    double x,
+    double y,
+    double w,
+    double h,
+    String direction,
+    bool fill,
+    bool stroke,
+  ) {
     final points = <List<double>>[];
     final headSize = 0.4;
     final shaftWidth = 0.3;
@@ -344,8 +407,15 @@ class PdfExporter {
     builder.drawPolygon(points, stroke: stroke, fill: fill);
   }
 
-  void _drawStar(PdfContentBuilder builder, double cx, double cy, double r,
-      int points, bool fill, bool stroke) {
+  void _drawStar(
+    PdfContentBuilder builder,
+    double cx,
+    double cy,
+    double r,
+    int points,
+    bool fill,
+    bool stroke,
+  ) {
     final innerR = r * 0.4;
     final vertices = <List<double>>[];
 
@@ -358,8 +428,15 @@ class PdfExporter {
     builder.drawPolygon(vertices, stroke: stroke, fill: fill);
   }
 
-  void _drawRegularPolygon(PdfContentBuilder builder, double cx, double cy,
-      double r, int sides, bool fill, bool stroke) {
+  void _drawRegularPolygon(
+    PdfContentBuilder builder,
+    double cx,
+    double cy,
+    double r,
+    int sides,
+    bool fill,
+    bool stroke,
+  ) {
     final vertices = <List<double>>[];
 
     for (var i = 0; i < sides; i++) {
@@ -443,25 +520,30 @@ class PdfExporter {
               final isBold = child.isBold || isHeading;
               final width = isCheckbox
                   ? effFontSize
-                  : builder.measureText(word, effFontSize,
+                  : builder.measureText(
+                      word,
+                      effFontSize,
                       isBold: isBold,
                       fontRef: fontRef,
-                      fontManager: _fontManager);
+                      fontManager: _fontManager,
+                    );
 
-              words.add(_Word(
-                word,
-                fontRef,
-                color,
-                width,
-                isUnderline: child.isUnderline,
-                isStrike: child.isStrike,
-                backgroundColor: backgroundColor,
-                fontSize: child.fontSize,
-                isSuperscript: child.isSuperscript,
-                isSubscript: child.isSubscript,
-                isCheckbox: isCheckbox,
-                checkboxType: checkboxType,
-              ));
+              words.add(
+                _Word(
+                  word,
+                  fontRef,
+                  color,
+                  width,
+                  isUnderline: child.isUnderline,
+                  isStrike: child.isStrike,
+                  backgroundColor: backgroundColor,
+                  fontSize: child.fontSize,
+                  isSuperscript: child.isSuperscript,
+                  isSubscript: child.isSubscript,
+                  isCheckbox: isCheckbox,
+                  checkboxType: checkboxType,
+                ),
+              );
             }
           }
 
@@ -502,8 +584,8 @@ class PdfExporter {
     // Calculate total height for paragraph background
     final totalParagraphHeight =
         lineHeights.fold<double>(0, (sum, h) => sum + h) +
-            paddingTop +
-            paddingBottom;
+        paddingTop +
+        paddingBottom;
 
     // Draw paragraph background (use full width for code blocks etc.)
     if (paragraph.shadingFill != null && paragraph.shadingFill != 'auto') {
@@ -515,8 +597,12 @@ class PdfExporter {
       // Actually, shading usually applies to the text box.
       // If we want FULL shading, we might strictly use (maxWidth + paddingLeft + paddingRight).
       // Let's stick to the box model we built: indent implies empty space outside.
-      builder.fillRect(startX + indent, bgBottom,
-          maxWidth + paddingLeft + paddingRight, totalParagraphHeight);
+      builder.fillRect(
+        startX + indent,
+        bgBottom,
+        maxWidth + paddingLeft + paddingRight,
+        totalParagraphHeight,
+      );
       builder.restoreState();
     }
 
@@ -574,7 +660,11 @@ class PdfExporter {
           builder.setFillColorHex(word.backgroundColor!);
           // Draw background rectangle behind word using word's font size
           builder.fillRect(
-              bgX, y - wordFontSize * 0.2, word.width, wordFontSize * 1.2);
+            bgX,
+            y - wordFontSize * 0.2,
+            word.width,
+            wordFontSize * 1.2,
+          );
           builder.restoreState();
         }
         bgX += word.width;
@@ -636,22 +726,26 @@ class PdfExporter {
 
           // Collect underline/strikethrough decorations
           if (word.isUnderline) {
-            decorations.add(_TextDecoration(
-              x: textX,
-              y: yPos - effFontSize * 0.15,
-              width: word.width,
-              color: word.color,
-              isStrike: false,
-            ));
+            decorations.add(
+              _TextDecoration(
+                x: textX,
+                y: yPos - effFontSize * 0.15,
+                width: word.width,
+                color: word.color,
+                isStrike: false,
+              ),
+            );
           }
           if (word.isStrike) {
-            decorations.add(_TextDecoration(
-              x: textX,
-              y: yPos + effFontSize * 0.3,
-              width: word.width,
-              color: word.color,
-              isStrike: true,
-            ));
+            decorations.add(
+              _TextDecoration(
+                x: textX,
+                y: yPos + effFontSize * 0.3,
+                width: word.width,
+                color: word.color,
+                isStrike: true,
+              ),
+            );
           }
 
           textX += word.width;
@@ -723,7 +817,10 @@ class PdfExporter {
   }
 
   List<List<_Word>> _flowWords(
-      List<_Word> words, double maxWidth, double spaceWidth) {
+    List<_Word> words,
+    double maxWidth,
+    double spaceWidth,
+  ) {
     final lines = <List<_Word>>[];
     var currentLine = <_Word>[];
     var currentWidth = 0.0;
@@ -805,7 +902,13 @@ class PdfExporter {
         for (final block in cell.children) {
           if (block is DocxParagraph) {
             _renderCellParagraph(
-                block, builder, cellX, cellY, colWidth - 4, layout);
+              block,
+              builder,
+              cellX,
+              cellY,
+              colWidth - 4,
+              layout,
+            );
             cellY -= layout.measureParagraphInWidth(block, colWidth - 4);
           }
         }
@@ -871,23 +974,28 @@ class PdfExporter {
               }
               final w = isCheckbox
                   ? effFontSize
-                  : builder.measureText(word, effFontSize,
-                      isBold: child.isBold);
+                  : builder.measureText(
+                      word,
+                      effFontSize,
+                      isBold: child.isBold,
+                    );
 
-              words.add(_Word(
-                word,
-                fontRef,
-                color,
-                w.toDouble(),
-                isUnderline: child.isUnderline,
-                isStrike: child.isStrike,
-                backgroundColor: backgroundColor,
-                fontSize: child.fontSize,
-                isSuperscript: child.isSuperscript,
-                isSubscript: child.isSubscript,
-                isCheckbox: isCheckbox,
-                checkboxType: checkboxType,
-              ));
+              words.add(
+                _Word(
+                  word,
+                  fontRef,
+                  color,
+                  w.toDouble(),
+                  isUnderline: child.isUnderline,
+                  isStrike: child.isStrike,
+                  backgroundColor: backgroundColor,
+                  fontSize: child.fontSize,
+                  isSuperscript: child.isSuperscript,
+                  isSubscript: child.isSubscript,
+                  isCheckbox: isCheckbox,
+                  checkboxType: checkboxType,
+                ),
+              );
             }
           }
 
@@ -928,7 +1036,11 @@ class PdfExporter {
           builder.saveState();
           builder.setFillColorHex(word.backgroundColor!);
           builder.fillRect(
-              textX, currentY - fontSize * 0.2, word.width, fontSize * 1.2);
+            textX,
+            currentY - fontSize * 0.2,
+            word.width,
+            fontSize * 1.2,
+          );
           builder.restoreState();
           builder.beginText();
           builder.setTextMatrix(textX, currentY);
@@ -1038,8 +1150,9 @@ class PdfExporter {
           }
 
           // Decode HTML entities and handle newlines
-          final decodedText =
-              PdfContentBuilder.decodeHtmlEntities(child.content);
+          final decodedText = PdfContentBuilder.decodeHtmlEntities(
+            child.content,
+          );
           final textLines = decodedText.split('\n');
 
           for (var lineIdx = 0; lineIdx < textLines.length; lineIdx++) {
@@ -1069,23 +1182,28 @@ class PdfExporter {
                 }
                 final w = isCheckbox
                     ? effFontSize
-                    : builder.measureText(word, effFontSize,
-                        isBold: child.isBold);
+                    : builder.measureText(
+                        word,
+                        effFontSize,
+                        isBold: child.isBold,
+                      );
 
-                words.add(_Word(
-                  word,
-                  fontRef,
-                  color,
-                  w,
-                  isUnderline: child.isUnderline,
-                  isStrike: child.isStrike,
-                  backgroundColor: backgroundColor,
-                  fontSize: child.fontSize,
-                  isSuperscript: child.isSuperscript,
-                  isSubscript: child.isSubscript,
-                  isCheckbox: isCheckbox,
-                  checkboxType: checkboxType,
-                ));
+                words.add(
+                  _Word(
+                    word,
+                    fontRef,
+                    color,
+                    w,
+                    isUnderline: child.isUnderline,
+                    isStrike: child.isStrike,
+                    backgroundColor: backgroundColor,
+                    fontSize: child.fontSize,
+                    isSuperscript: child.isSuperscript,
+                    isSubscript: child.isSubscript,
+                    isCheckbox: isCheckbox,
+                    checkboxType: checkboxType,
+                  ),
+                );
               }
             }
 
@@ -1121,7 +1239,11 @@ class PdfExporter {
               builder.saveState();
               builder.setFillColorHex(word.backgroundColor!);
               builder.fillRect(
-                  textX, currentY - fontSize * 0.2, word.width, fontSize * 1.2);
+                textX,
+                currentY - fontSize * 0.2,
+                word.width,
+                fontSize * 1.2,
+              );
               builder.restoreState();
               builder.beginText();
               builder.setTextMatrix(textX, currentY);
@@ -1218,7 +1340,12 @@ class PdfExporter {
     // But our y is top-down flow. We want top-left of image at y.
     // So draw at y - height
     builder.drawImage(
-        imageName, x, y - renderHeight, renderWidth, renderHeight);
+      imageName,
+      x,
+      y - renderHeight,
+      renderWidth,
+      renderHeight,
+    );
 
     return y - renderHeight - 10;
   }
@@ -1227,7 +1354,8 @@ class PdfExporter {
     final result = <_SectionData>[];
     var currentNodes = <DocxNode>[];
 
-    var currentDef = doc.section ??
+    var currentDef =
+        doc.section ??
         DocxSectionDef(
           pageSize: DocxPageSize.letter,
           marginTop: (marginTop * 20).toInt(),
@@ -1333,39 +1461,39 @@ class _Word {
     this.isSubscript = false,
     this.isCheckbox = false,
     this.checkboxType,
-  })  : isTab = false,
-        isBreak = false;
+  }) : isTab = false,
+       isBreak = false;
 
   _Word.tab(this.width)
-      : text = '',
-        fontRef = '',
-        color = '',
-        isTab = true,
-        isBreak = false,
-        isUnderline = false,
-        isStrike = false,
-        backgroundColor = null,
-        fontSize = null,
-        isSuperscript = false,
-        isSubscript = false,
-        isCheckbox = false,
-        checkboxType = null;
+    : text = '',
+      fontRef = '',
+      color = '',
+      isTab = true,
+      isBreak = false,
+      isUnderline = false,
+      isStrike = false,
+      backgroundColor = null,
+      fontSize = null,
+      isSuperscript = false,
+      isSubscript = false,
+      isCheckbox = false,
+      checkboxType = null;
 
   _Word.lineBreak()
-      : text = '',
-        fontRef = '',
-        color = '',
-        width = 0,
-        isTab = false,
-        isBreak = true,
-        isUnderline = false,
-        isStrike = false,
-        backgroundColor = null,
-        fontSize = null,
-        isSuperscript = false,
-        isSubscript = false,
-        isCheckbox = false,
-        checkboxType = null;
+    : text = '',
+      fontRef = '',
+      color = '',
+      width = 0,
+      isTab = false,
+      isBreak = true,
+      isUnderline = false,
+      isStrike = false,
+      backgroundColor = null,
+      fontSize = null,
+      isSuperscript = false,
+      isSubscript = false,
+      isCheckbox = false,
+      checkboxType = null;
 }
 
 /// Helper class to track text decoration positions for underline/strikethrough
