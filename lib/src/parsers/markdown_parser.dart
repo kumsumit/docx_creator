@@ -10,10 +10,32 @@ class MarkdownParser {
 
   /// Parses Markdown string into DocxNode elements.
   static Future<List<DocxNode>> parse(String markdown) async {
-    // Enable GFM (tables, strikethrough, autolinks, task lists)
-    final document = md.Document(extensionSet: md.ExtensionSet.gitHubFlavored);
-    final nodes = document.parseLines(markdown.split('\n'));
-    return _parseNodes(nodes);
+    // Input validation
+    if (markdown.isEmpty) {
+      throw DocxParserException(
+        'Markdown input cannot be empty',
+        sourceFormat: 'Markdown',
+      );
+    }
+
+    if (markdown.trim().isEmpty) {
+      throw DocxParserException(
+        'Markdown input cannot be only whitespace',
+        sourceFormat: 'Markdown',
+      );
+    }
+
+    try {
+      // Enable GFM (tables, strikethrough, autolinks, task lists)
+      final document = md.Document(extensionSet: md.ExtensionSet.gitHubFlavored);
+      final nodes = document.parseLines(markdown.split('\n'));
+      return _parseNodes(nodes);
+    } catch (e) {
+      throw DocxParserException(
+        'Failed to parse Markdown: $e',
+        sourceFormat: 'Markdown',
+      );
+    }
   }
 
   static Future<List<DocxNode>> _parseNodes(List<md.Node> nodes) async {

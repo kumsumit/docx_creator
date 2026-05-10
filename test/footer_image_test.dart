@@ -27,7 +27,7 @@ void main() {
       final style = table.style;
       expect(style, isNotNull);
       expect(style.borderTop!.size, equals(0));
-      expect(style.borderTop!.color, equals(DocxColor.white));
+      expect(style.borderTop!.color, equals(DocxColor.auto));
       expect(style.borderBottom!.size, equals(0));
       expect(style.borderLeft!.size, equals(0));
       expect(style.borderRight!.size, equals(0));

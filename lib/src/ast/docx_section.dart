@@ -398,9 +398,7 @@ class DocxFooter extends DocxSection {
     double imageHeight = 40,
     DocxAlign textAlign = DocxAlign.right,
   }) {
-    const borderNone = DocxBorderSide(
-      style: DocxBorder.none,
-    );
+    const borderNone = DocxBorderSide.none();
 
     const tableStyle = DocxTableStyle(
       borderTop: borderNone,

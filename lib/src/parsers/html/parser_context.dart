@@ -10,6 +10,9 @@ class HtmlParserContext {
   /// The parsed HTML document
   final dom.Document document;
 
+  /// Cache for parsed CSS properties to avoid re-parsing
+  final Map<String, Map<String, String>> _parsedStyleCache = {};
+
   HtmlParserContext({
     required this.document,
     Map<String, String>? cssMap,
@@ -53,5 +56,34 @@ class HtmlParserContext {
       }
     }
     return combined;
+  }
+
+  /// Parse CSS style string into a map of property -> value.
+  /// Uses caching to avoid re-parsing the same styles.
+  Map<String, String> parseCssProperties(String styleString) {
+    if (_parsedStyleCache.containsKey(styleString)) {
+      return _parsedStyleCache[styleString]!;
+    }
+
+    final properties = <String, String>{};
+    if (styleString.isNotEmpty) {
+      final declarations = styleString.split(';');
+      for (var declaration in declarations) {
+        declaration = declaration.trim();
+        if (declaration.isNotEmpty) {
+          final colonIndex = declaration.indexOf(':');
+          if (colonIndex > 0) {
+            final property = declaration.substring(0, colonIndex).trim().toLowerCase();
+            final value = declaration.substring(colonIndex + 1).trim();
+            if (property.isNotEmpty && value.isNotEmpty) {
+              properties[property] = value;
+            }
+          }
+        }
+      }
+    }
+
+    _parsedStyleCache[styleString] = properties;
+    return properties;
   }
 }

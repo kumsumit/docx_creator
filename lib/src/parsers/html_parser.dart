@@ -33,13 +33,35 @@ class DocxParser {
   /// - Local images (if file path access allows)
   /// - Checkboxes (<input type="checkbox">)
   static Future<List<DocxNode>> fromHtml(String html) async {
+    // Input validation
+    if (html.isEmpty) {
+      throw DocxParserException(
+        'HTML input cannot be empty',
+        sourceFormat: 'HTML',
+      );
+    }
+
+    if (html.trim().isEmpty) {
+      throw DocxParserException(
+        'HTML input cannot be only whitespace',
+        sourceFormat: 'HTML',
+      );
+    }
+
     try {
       final document = html_parser.parse(html);
       final context = HtmlParserContext.fromDocument(document);
       final blockParser = HtmlBlockParser(context);
 
       final body = document.body;
-      if (body == null) return [];
+      if (body == null) {
+        // Check if document has any content at all
+        if (document.nodes.isEmpty) {
+          return [];
+        }
+        // Parse from root if no body
+        return blockParser.parseChildren(document.nodes);
+      }
       return blockParser.parseChildren(body.nodes);
     } catch (e) {
       throw DocxParserException(

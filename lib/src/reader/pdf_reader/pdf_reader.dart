@@ -86,6 +86,18 @@ class PdfReader {
     if (bytes.isEmpty) {
       throw PdfParseException('Empty PDF data');
     }
+
+    // Basic PDF header validation
+    if (bytes.length < 8) {
+      throw PdfParseException('Data too short to be a valid PDF');
+    }
+
+    // Check for PDF header
+    final header = String.fromCharCodes(bytes.sublist(0, 8));
+    if (!header.startsWith('%PDF-')) {
+      throw PdfParseException('Invalid PDF header: expected %PDF-, got ${header.substring(0, 5)}');
+    }
+
     final reader = PdfReader._(bytes);
 
     return reader._parse(password);
