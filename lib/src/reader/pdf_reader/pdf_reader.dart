@@ -770,7 +770,7 @@ class PdfDocument {
   /// Document metadata (title, author, dates, etc.).
   PdfMetadata get metadata {
     if (_metadata == null && _parser != null) {
-      _metadata = PdfMetadataExtractor(_parser!).extract();
+      _metadata = PdfMetadataExtractor(_parser).extract();
     }
     return _metadata ?? PdfMetadata(pdfVersion: version, pageCount: pageCount);
   }
@@ -779,7 +779,7 @@ class PdfDocument {
   /// Returns null if no XMP metadata exists.
   XmpMetadata? get xmpMetadata {
     if (!_xmpChecked && _parser != null) {
-      _xmpMetadata = XmpMetadata.extract(_parser!);
+      _xmpMetadata = XmpMetadata.extract(_parser);
       _xmpChecked = true;
     }
     return _xmpMetadata;
@@ -790,7 +790,7 @@ class PdfDocument {
   /// Document attachments (embedded files).
   List<PdfAttachment> get attachments {
     if (_attachments == null && _parser != null) {
-      _attachments = PdfAttachmentExtractor(_parser!).extract();
+      _attachments = PdfAttachmentExtractor(_parser).extract();
     }
     return _attachments ?? [];
   }
@@ -802,7 +802,7 @@ class PdfDocument {
   List<String> get pageLabels {
     if (_parser == null) return List.generate(pageCount, (i) => '${i + 1}');
 
-    final rootObj = _parser!.getObject(_parser!.rootRef);
+    final rootObj = _parser.getObject(_parser.rootRef);
     if (rootObj == null) return List.generate(pageCount, (i) => '${i + 1}');
 
     final labelsMatch =
@@ -810,7 +810,7 @@ class PdfDocument {
     if (labelsMatch == null) return List.generate(pageCount, (i) => '${i + 1}');
 
     final numTreeRef = int.parse(labelsMatch.group(1)!);
-    final tree = PdfNumberTree(_parser!).parse(numTreeRef);
+    final tree = PdfNumberTree(_parser).parse(numTreeRef);
 
     // Number Tree keys are page INDICES.
     // We need to fill in gaps. A label applies until the next key.
@@ -845,7 +845,7 @@ class PdfDocument {
   /// Whether the PDF is a Tagged PDF (has logical structure).
   bool get isTagged {
     if (_parser == null) return false;
-    final rootObj = _parser!.getObject(_parser!.rootRef);
+    final rootObj = _parser.getObject(_parser.rootRef);
     if (rootObj == null) return false;
     return rootObj.content.contains('/StructTreeRoot');
   }
@@ -853,12 +853,12 @@ class PdfDocument {
   /// The logical structure tree (if present).
   PdfStructureTree? get structureTree {
     if (!isTagged || _parser == null) return null;
-    final rootObj = _parser!.getObject(_parser!.rootRef);
+    final rootObj = _parser.getObject(_parser.rootRef);
     final match = RegExp(r'/StructTreeRoot\s+(\d+)\s+\d+\s+R')
         .firstMatch(rootObj!.content);
     if (match == null) return null;
 
-    return PdfStructureTree(_parser!, int.parse(match.group(1)!));
+    return PdfStructureTree(_parser, int.parse(match.group(1)!));
   }
 
   // ============ Layers (OCGs) ============
@@ -866,7 +866,7 @@ class PdfDocument {
   /// Optional Content Groups (Layers).
   List<PdfLayer> get layers {
     if (_parser == null) return [];
-    return PdfLayer.extract(_parser!, _parser!.rootRef);
+    return PdfLayer.extract(_parser, _parser.rootRef);
   }
 
   // ============ Outlines/Bookmarks ============
@@ -874,7 +874,7 @@ class PdfDocument {
   /// Document outline (bookmarks/table of contents).
   List<PdfOutlineItem> get outlines {
     if (_outlines == null && _parser != null) {
-      _outlines = PdfOutlineExtractor(_parser!).extract();
+      _outlines = PdfOutlineExtractor(_parser).extract();
     }
     return _outlines ?? [];
   }
@@ -887,7 +887,7 @@ class PdfDocument {
   /// All annotations in the document.
   List<PdfAnnotation> get annotations {
     if (_annotations == null && _parser != null) {
-      _annotations = PdfAnnotationExtractor(_parser!).extractAll();
+      _annotations = PdfAnnotationExtractor(_parser).extractAll();
     }
     return _annotations ?? [];
   }
@@ -905,7 +905,7 @@ class PdfDocument {
   /// Form fields in the document.
   List<PdfFormField> get formFields {
     if (_formFields == null && _parser != null) {
-      _formFields = PdfFormExtractor(_parser!).extractFields();
+      _formFields = PdfFormExtractor(_parser).extractFields();
     }
     return _formFields ?? [];
   }
@@ -913,7 +913,7 @@ class PdfDocument {
   /// Whether the document has a form.
   bool get hasForm {
     if (_parser != null) {
-      return PdfFormExtractor(_parser!).hasForm();
+      return PdfFormExtractor(_parser).hasForm();
     }
     return false;
   }
@@ -921,7 +921,7 @@ class PdfDocument {
   /// Gets form data as a map of field names to values.
   Map<String, dynamic> get formData {
     if (_parser != null) {
-      return PdfFormExtractor(_parser!).getFormData();
+      return PdfFormExtractor(_parser).getFormData();
     }
     return {};
   }
@@ -938,7 +938,7 @@ class PdfDocument {
     if (!_encryptionChecked && _parser != null) {
       // Use the parser's encryption instance (which has been authenticated)
       // instead of extracting a new one
-      _encryption = _parser!.encryption;
+      _encryption = _parser.encryption;
       _encryptionChecked = true;
     }
     return _encryption;
@@ -952,7 +952,7 @@ class PdfDocument {
   /// Detailed information for all pages.
   List<PdfPageInfo> get pageInfos {
     if (_pageInfos == null && _parser != null) {
-      _pageInfos = PdfPageInfoExtractor(_parser!).extractAll();
+      _pageInfos = PdfPageInfoExtractor(_parser).extractAll();
     }
     return _pageInfos ?? [];
   }
@@ -960,7 +960,7 @@ class PdfDocument {
   /// Gets info for a specific page.
   PdfPageInfo? getPageInfo(int pageNumber) {
     if (_parser != null) {
-      return PdfPageInfoExtractor(_parser!).extractPage(pageNumber);
+      return PdfPageInfoExtractor(_parser).extractPage(pageNumber);
     }
     return null;
   }
@@ -972,7 +972,7 @@ class PdfDocument {
   Map<String, int> get namedDestinations {
     if (_parser == null) return {};
 
-    final rootObj = _parser!.getObject(_parser!.rootRef);
+    final rootObj = _parser.getObject(_parser.rootRef);
     if (rootObj == null) return {};
 
     final result = <String, int>{};
@@ -981,7 +981,7 @@ class PdfDocument {
     final namesMatch =
         RegExp(r'/Names\s+(\d+)\s+\d+\s+R').firstMatch(rootObj.content);
     if (namesMatch != null) {
-      final namesObj = _parser!.getObject(int.parse(namesMatch.group(1)!));
+      final namesObj = _parser.getObject(int.parse(namesMatch.group(1)!));
       if (namesObj != null) {
         final destsMatch =
             RegExp(r'/Dests\s+(\d+)\s+\d+\s+R').firstMatch(namesObj.content);
@@ -1073,7 +1073,7 @@ class PdfDocument {
   int? get openDestination {
     if (_parser == null) return null;
 
-    final rootObj = _parser!.getObject(_parser!.rootRef);
+    final rootObj = _parser.getObject(_parser.rootRef);
     if (rootObj == null) return null;
 
     // Check /OpenAction
@@ -1082,7 +1082,7 @@ class PdfDocument {
     if (openMatch != null) {
       final pageRef = int.parse(openMatch.group(1)!);
       for (var i = 0; i < pageInfos.length; i++) {
-        final obj = _parser!.getObject(pageRef);
+        final obj = _parser.getObject(pageRef);
         if (obj != null && obj.content.contains('/Type /Page')) {
           return i;
         }
@@ -1105,7 +1105,7 @@ class PdfDocument {
     final pageObj = _getPageObjectByIndex(pageNumber);
     if (pageObj == null) return '';
 
-    final textExtractor = PdfTextExtractor(_parser!);
+    final textExtractor = PdfTextExtractor(_parser);
     textExtractor.extractPageFonts(pageObj.content);
     textExtractor.pageWidth = info.mediaBox.width;
     textExtractor.pageHeight = info.mediaBox.height;
@@ -1121,7 +1121,7 @@ class PdfDocument {
     if (_parser == null) return null;
 
     // Walk page tree to find page at index
-    final rootObj = _parser!.getObject(_parser!.rootRef);
+    final rootObj = _parser.getObject(_parser.rootRef);
     if (rootObj == null) return null;
 
     final pagesMatch =
